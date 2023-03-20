@@ -1,0 +1,8 @@
+asyncpg~=0.27.0
+databases[postgresql]~=0.7.0
+psycopg2-binary~=2.9.5
+fastapi[all]~=0.94.0
+SQLAlchemy~=1.4.46
+uvicorn~=0.21.0
+httpx~=0.23.3
+jinja2~=3.1.2

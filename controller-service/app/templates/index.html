@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="{{ url_for('static', path='/fonts/icomoon/style.css') }}">
+
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/owl.carousel.min.css') }}">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/bootstrap.min.css') }}">
+    
+    <!-- Style -->
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/style.css') }}">
+
+    <title>Table #7</title>
+  </head>
+  <body>
+  
+
+  <div class="content">
+    
+    <div class="container">
+      <h2 class="mb-5">Cameras</h2>
+
+      <div class="table-responsive">
+
+        <table class="table table-striped custom-table">
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Location</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for camera in cameras %}
+            <tr {% if camera['is_active'] %}class="active"{% endif %} data-camera-id="{{ camera['id'] }}">
+              <td class="pl-0">
+                <div class="d-flex align-items-center">
+
+
+                  <a href="#" class="name">{{camera['name']}}</a>
+                </div>
+              </td>
+              <td>
+                {{camera['location']}}
+                <small class="d-block">{{camera['location_details']}}</small>
+              </td>
+              <td>
+                <label class="custom-control ios-switch">
+                  <input type="checkbox" class="ios-switch-control-input" {% if camera['is_active'] %}checked{% endif %}>
+                  <span class="ios-switch-control-indicator"></span>
+                  </label>
+              </td>
+
+            </tr>
+          {% endfor %}
+            
+          </tbody>
+        </table>
+      </div>
+
+
+    </div>
+
+  </div>
+    
+    
+
+    <script src="{{ url_for('static', path='/js/jquery-3.3.1.min.js') }}"></script>
+    <script src="{{ url_for('static', path='/js/popper.min.js') }}"></script>
+    <script src="{{ url_for('static', path='/js/bootstrap.min.js') }}"></script>
+    <script src="{{ url_for('static', path='/js/main.js') }}"></script>
+  </body>
+</html>

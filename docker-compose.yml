@@ -1,0 +1,166 @@
+version: '3.7'
+
+services:
+  controller_service:
+    container_name: controller-service
+    build: ./controller-service
+    restart: always
+    command: sh -c "/wait && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
+    volumes:
+      - ./controller-service/:/app/
+    environment:
+      - WAIT_HOSTS=cameras_service:8000
+      - WAIT_HOSTS_TIMEOUT=300
+      - WAIT_SLEEP_INTERVAL=30
+      - WAIT_HOST_CONNECT_TIMEOUT=30
+      - CAMERAS_SERVICE_HOST_URL=http://cameras_service:8000/api/v1/cameras/
+    healthcheck:
+      test: curl --fail http://127.0.0.1:8000/api/v1/controller/healthcheck || exit 1
+      interval: 60s
+      retries: 5
+      start_period: 60s
+      timeout: 10s
+    networks:
+      - internal
+
+  cameras_service:
+    container_name: cameras-service
+    build: ./cameras-service
+    restart: always
+    command: sh -c "/wait && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
+    volumes:
+      - ./cameras-service/:/app/
+    environment:
+      - WAIT_HOSTS=rabbitmq_server:15672,cameras_db:5432
+      - WAIT_HOSTS_TIMEOUT=300
+      - WAIT_SLEEP_INTERVAL=30
+      - WAIT_HOST_CONNECT_TIMEOUT=30
+      - DATABASE_URI=postgresql://cameras_db_username:cameras_db_password@cameras-db/cameras_db_dev
+      - RABBITMQ_USERNAME=admin
+      - RABBITMQ_PASSSWORD=pass
+      - RABBITMQ_HOST=rabbitmq_server
+      - RABBITMQ_QUEUE=camera_updated
+      - RABBITMQ_CAMERA_STATE_UPDATED_ROUTING_KEY=state_updated
+      - RABBITMQ_EXCHANGE=camera
+    depends_on:
+      - cameras_db
+      - rabbitmq_server
+    healthcheck:
+      test: curl --fail http://127.0.0.1:8000/api/v1/cameras/healthcheck || exit 1
+      interval: 60s
+      retries: 5
+      start_period: 60s
+      timeout: 10s
+    networks:
+      - internal
+
+  cameras_stream_consumer:
+    container_name: cameras-stream-consumer
+    build: ./cameras-stream-consumer
+    restart: always
+    command: sh -c "/wait && python consumer.py"
+    volumes:
+      - ./cameras-stream-consumer/:/app/
+      - camera-consumers-volume:/tmp
+    environment:
+      - WAIT_HOSTS=rabbitmq_server:15672
+      - WAIT_HOSTS_TIMEOUT=300
+      - WAIT_SLEEP_INTERVAL=30
+      - WAIT_HOST_CONNECT_TIMEOUT=30
+      - RABBITMQ_USERNAME=admin
+      - RABBITMQ_PASSSWORD=pass
+      - RABBITMQ_HOST=rabbitmq_server
+      - RABBITMQ_QUEUE=camera_updated
+      - RABBITMQ_ROUTING_KEY=state_updated
+      - RABBITMQ_EXCHANGE=camera
+      - RABBITMQ_VIDEO_PRODUCER_QUEUE=camera_video
+      - RABBITMQ_VIDEO_PRODUCER_ROUTING_KEY=video_captured
+      - RABBITMQ_VIDEO_PRODUCER_EXCHANGE=video
+    depends_on:
+      - rabbitmq_server
+    networks:
+      - internal
+
+  cameras_video_upload_consumer:
+    container_name: cameras-video-upload-consumer
+    build: ./cameras-video-upload-consumer
+    restart: always
+    command: sh -c "/wait && python consumer.py"
+    volumes:
+      - ./cameras-video-upload-consumer/:/app/
+      - camera-consumers-volume:/tmp
+    environment:
+      - WAIT_HOSTS=rabbitmq_server:15672
+      - WAIT_HOSTS_TIMEOUT=300
+      - WAIT_SLEEP_INTERVAL=30
+      - WAIT_HOST_CONNECT_TIMEOUT=30
+      - RABBITMQ_USERNAME=admin
+      - RABBITMQ_PASSSWORD=pass
+      - RABBITMQ_HOST=rabbitmq_server
+      - RABBITMQ_QUEUE=camera_video
+      - RABBITMQ_ROUTING_KEY=video_captured
+      - RABBITMQ_EXCHANGE=video
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test2
+      - AWS_BUCKET_FOR_VIDEO=video
+    depends_on:
+      - rabbitmq_server
+    networks:
+      - internal
+
+  cameras_db:
+    container_name: cameras-db
+    image: postgres:12.1-alpine
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data/
+    ports:
+      - "54320:5432"
+    environment:
+      - POSTGRES_USER=cameras_db_username
+      - POSTGRES_PASSWORD=cameras_db_password
+      - POSTGRES_DB=cameras_db_dev
+    healthcheck:
+      test: [ "CMD", "pg_isready -U postgres" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - internal
+
+  nginx:
+    container_name: nginx
+    image: nginx:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./nginx_config.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - cameras_service
+      - controller_service
+    networks:
+      - internal
+
+  rabbitmq_server:
+    container_name: rabbitmq-server
+    image: "rabbitmq:3.6-management-alpine"
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: "admin"
+      RABBITMQ_DEFAULT_PASS: "pass"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:15672" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  postgres_data_cameras:
+  camera-consumers-volume:
