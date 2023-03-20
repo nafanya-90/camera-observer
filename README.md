@@ -13,6 +13,10 @@ Observer is an application developed to record video stream from cameras and sav
 ![SVG schema](docs/schema.png)
 
 
+## User interface to manage cameras
+![User interface](docs/controller_interface.png)
+
+
 ## Microservices
 
 1. `controller` service - the service is responsible for communication between users and cameras. It provides a simple web-interface based on `FastApi` to turn on/off cameras, check its state, etc.
